@@ -1,0 +1,34 @@
+{
+  "realm": "wager",
+  "enabled": true,
+  "accessTokenLifespan": 300,
+  "sslRequired": "none",
+  "clients": [
+    {
+      "clientId": "provider-a",
+      "name": "Test game provider A",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "provider-a-secret",
+      "defaultClientScopes": ["profile", "email"]
+    },
+    {
+      "clientId": "provider-b",
+      "name": "Test game provider B",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "provider-b-secret",
+      "defaultClientScopes": ["profile", "email"]
+    }
+  ]
+}

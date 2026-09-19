@@ -1,0 +1,90 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: wager
+      POSTGRES_PASSWORD: wager
+      POSTGRES_DB: wager
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wager -d wager"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    image: migrate/migrate:v4.17.1
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./migrations:/migrations:ro
+    command:
+      [
+        "-path", "/migrations",
+        "-database", "postgres://wager:wager@postgres:5432/wager?sslmode=disable",
+        "up"
+      ]
+    restart: "no"
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672" # management UI: http://localhost:15672 (guest/guest)
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HOSTNAME: "http://localhost:8081"
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./deployments/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+
+  api:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      HTTP_ADDR: ":8080"
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: wager
+      POSTGRES_PASSWORD: wager
+      POSTGRES_DB: wager
+      POSTGRES_SSLMODE: disable
+      RABBITMQ_URL: "amqp://guest:guest@rabbitmq:5672/"
+      KEYCLOAK_ISSUER: "http://localhost:8081/realms/wager"
+      KEYCLOAK_JWKS_URL: "http://keycloak:8080/realms/wager/protocol/openid-connect/certs"
+      KEYCLOAK_PROVIDER_CLAIM: "azp"
+
+volumes:
+  postgres-data:
